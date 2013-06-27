@@ -1,0 +1,19 @@
+{
+  "name": "hpproxy",
+  "description": "HP Proxy Demo",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "app.js"
+  },
+  "subdomain": "hpproxy",
+  "dependencies": {
+    "express": "3.0.3",
+    "versionator": "0.2.1",
+    "jsdom": "0.6.5"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": "0.8.x"
+  }
+}

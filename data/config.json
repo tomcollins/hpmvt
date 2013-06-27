@@ -1,0 +1,20 @@
+{
+  "variants": [
+    {
+      "type": "text",
+      "selector": "#hf3648a08 h4 a",
+      "values": {
+        "v1": "Can anyone beat spain?",
+        "v2": "Por favour?"
+      }
+    },
+    {
+      "type": "image",
+      "selector": "#hf3648a08 img",
+      "values": {
+        "v1": "http://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Spain_national_football_team_Euro_2012_final.jpg/300px-Spain_national_football_team_Euro_2012_final.jpg",
+        "v2": "http://us.123rf.com/400wm/400/400/natursports/natursports1201/natursports120100096/11952291-barcelona-spain--december-13-2010-some-fc-barcelona-players-warm-up-before-the-spanish-football-leag.jpg"
+      }
+    }
+  ]  
+}
