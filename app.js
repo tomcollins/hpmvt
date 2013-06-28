@@ -139,6 +139,12 @@ function modifyHtml(html, variant, callback) {
           'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
           'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
         );
+      } else if ('add_promo' === variantData.type && variantData.values[variant]) {
+        var promo = '<div style="position:relative;width:976px;height:168px;margin:0 auto;">'
+        + '<a href="http://www.bbc.co.uk/events/ej58q9">'
+        + '<img src="http://s16.postimg.org/44o4nm4b9/Screen_shot_2013_06_28_at_10_54_04.png" width="976px" height="168px />"'
+        + '</div>';
+        $('#h4-container').prepend(promo);
       }
     });
     $('body').append(getAnalyticHtml(variant));

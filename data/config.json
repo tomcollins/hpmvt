@@ -2,25 +2,25 @@
   "variants": [
     {
       "type": "text",
-      "selector": "#h57bbf0bf h4 a",
+      "selector": "#h343720e5 h4 a",
       "values": {
-        "v1": "Astroid blast loops the earth!",
-        "v2": "Some other headline"
+        "v1": "Take the weekly quiz!",
+        "v2": "Try this weeks quiz."
       }
     },
     {
       "type": "image",
-      "selector": "#h57bbf0bf img",
+      "selector": "#h343720e5 img",
       "values": {
-        "v1": "http://www.nickutopia.com/wp-content/uploads/2011/06/Asteroids-Movie.jpg",
-        "v2": "http://webecoist.momtastic.com/wp-content/uploads/2010/01/Amazing_Craters_1a.jpg"
+        "v1": "http://www.messianictrust.org.uk/kids-purim/images/QuizTitle.jpg",
+        "v2": "http://www.relentless.co.uk/_assets/images/Quiz_button.png"
       }
     },
     {
       "type": "css",
       "values": {
-        "v1": "#h4weather .location .current .change{ background: #C8CCE3; color: #333; padding: 3px 5px;font-weight: normal;}",
-        "v2": "#h4weather .location .current .change{ background: #C8E3C8; color: #333; padding: 3px 5px;font-weight: normal;}"
+        "v1": "#h4weather .location .current .change{ background: #68F268; color: #333; padding: 3px 5px;font-weight: normal;}",
+        "v2": "#h4weather .location .current .change{ background: #8093E8; color: #fff; padding: 3px 5px;font-weight: normal;}"
       }
     },
     {
@@ -28,6 +28,13 @@
       "values": {
         "v1": true,
         "v2": false
+      }
+    },
+    {
+      "type": "add_promo",
+      "values": {
+        "v1": false,
+        "v2": true
       }
     }
   ]  
