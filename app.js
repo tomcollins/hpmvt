@@ -8,7 +8,8 @@ var app
   , htmlBody
   , variantConfig
   , jquery
-  , gaHtml;
+  , gaHtml
+  , useProxy = true;
 
 gaHtml = fs.readFileSync('./data/ga.html');
 variantConfig = JSON.parse(fs.readFileSync('./data/config.json'));
@@ -120,12 +121,44 @@ function modifyHtml(html, variant, callback) {
         $(variantData.selector).text(variantData.values[variant]);
       } else if ('image' === variantData.type) {
         $(variantData.selector).attr('src', variantData.values[variant]);
+      } else if ('remove_clock' === variantData.type && variantData.values[variant]) {
+        replaceRequireMapValue($, 
+          'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
+          'http://static.stage.bbci.co.uk/h4clock/0.69.2/modules/h4clock'
+        );
+        replaceCssHref($,
+          'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
+          'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
+        );
       }
     });
     $('body').append(getAnalyticHtml(variant));
     callback($('html').html());
   });
 };
+
+function replaceCssHref($, search, replace) {
+  var link, href;
+  $('link[rel="stylesheet"]').each(function(){
+    link = $(this);
+    href = link.attr('href');
+    if (href === search) {
+      link.attr('href', replace);
+    }
+  });
+}
+
+function replaceRequireMapValue($, search, replace) {
+  var script, text;
+  $('script').each(function(){
+    script = $(this);
+    text = script.text();
+    if (text.indexOf(search) !== -1) {
+      text = text.replace(search, replace);
+      script.text(text);
+    }
+  });
+}
 
 function getAnalyticHtml(variant) {
   var response = String(gaHtml);
@@ -137,9 +170,23 @@ function updateHtml() {
   console.log('Updating page...');
   var tempHtml
     , req;
-  req = http.request({
-    host: 'www.bbc.co.uk'
-  }, function(res) {
+
+  var options;
+  if (useProxy) {
+    options = {
+      host: 'www-cache.reith.bbc.co.uk',
+      port: 80,
+      path: "http://www.bbc.co.uk",
+      headers: {
+        Host: "www.bbc.co.uk"
+      }
+    }
+  } else {
+    options = {
+      host: 'www.bbc.co.uk'
+    }
+  }
+  req = http.request(options, function(res) {
     console.log('Response status: ' + res.statusCode);
     htmlHeaders = res.headers;
     writeFile('./data/headers.txt', JSON.stringify(htmlHeaders));
@@ -148,6 +195,7 @@ function updateHtml() {
       tempHtml += chunk;
     });
     res.on('end', function () {
+      console.log('Page updated');
       prepareHtml(tempHtml, function(html) {
         htmlBody = html;
         writeFile('./data/body.html', htmlBody);

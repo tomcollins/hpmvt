@@ -1,4 +1,5 @@
 data/latest.html
 data/index.html
 data/headers.txt
+data/config_template.json
 node_modules/*
