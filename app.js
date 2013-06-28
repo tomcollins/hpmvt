@@ -78,12 +78,19 @@ http.createServer(app).listen(app.get('port'), function(){
 });
 
 updateHtml();
+setTimeout(function(){
+  console.log('Fetch fresh html.');
+  updateHtml();
+}, 60000);
 
 function getVariant(req, res) {
   var variant = req.cookies.mvt;
   if (!variant) {
     variant = Math.random() <= 0.5 ? 'v1' : 'v2';
     res.cookie('mvt', variant);
+  }
+  if (req.query && req.query.variant) {
+    variant = req.query.variant;
   }
   return variant;
 }
@@ -121,6 +128,8 @@ function modifyHtml(html, variant, callback) {
         $(variantData.selector).text(variantData.values[variant]);
       } else if ('image' === variantData.type) {
         $(variantData.selector).attr('src', variantData.values[variant]);
+      } else if ('css' === variantData.type) {
+        $('<style type="text/css">' +variantData.values[variant] +'</style>').appendTo('head');
       } else if ('remove_clock' === variantData.type && variantData.values[variant]) {
         replaceRequireMapValue($, 
           'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
