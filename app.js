@@ -17,6 +17,9 @@ var app
   , variantConfig
   , environment
   , httpOptions
+  , htmlHeaders = {
+    'Content-Type': 'text/html'
+  }
   , analyticsHtml
   , googleAnalyticsHtml;
 
@@ -121,11 +124,13 @@ app.get('/config', function(req, res) {
 });
 
 app.post('/config', function(req, res){
-  var requestConfig, jsonError;
+  var requestConfig, jsonError, hasUpdatedConfig = false;
   if (req.body && req.body.config) {
     try {
       requestConfig = JSON.parse(req.body.config);
       if (requestConfig) {
+        hasUpdatedConfig = true;
+        utils.writeFile(variantConfigFile, req.body.config);
         variantConfig = requestConfig;
       }
     } catch (e) {
@@ -134,7 +139,7 @@ app.post('/config', function(req, res){
     }
   }
   res.writeHead(200, htmlHeaders);
-  res.write(utils.getConfigFormHtml(variantConfig, jsonError));
+  res.write(utils.getConfigFormHtml(variantConfig, hasUpdatedConfig, jsonError));
   res.end();
 });
 
@@ -172,7 +177,7 @@ function applyVariantModification($, variantData, variant) {
   } else if ('html_replace' === variantData.type) {
     var element = $(variantData.selector)
       , html = element.html();
-    element.html(html.replace(variantData.target, variantData.values[variant]));
+    element.html(html.replace(variantData.search, variantData.values[variant]));
   } else if ('image' === variantData.type) {
     $(variantData.selector).attr('src', variantData.values[variant]);
   } else if ('css' === variantData.type) {

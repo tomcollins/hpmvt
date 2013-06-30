@@ -1,16 +1,20 @@
 {
-  "variants": [
-    {
-      "type": "html_replace",
-      "selector": "#main-content h2.top-story-header a",
-      "target": "Obama praises Mandela 'inspiration'",
-      "values": {
-        "v1": "Test 1",
-        "v2": "Test 2"
-      },
-      "conversion": {
-        "selector": "#main-content h2.top-story-header a"
-      }
-    }
-  ] 
+    "variants": [
+        {
+            "id": "main_article_headline",
+            "type": "html_replace",
+            "selector": "h2.top-story-header",
+            "search": "Mass political protests grip Egypt",
+            "values": {
+                "v1": "Sphynx protest in Egypt",
+                "v2": "Pharaohld level of protest."
+            },
+            "tracking": [
+                {
+                    "type": "click",
+                    "selector": "h2.top-story-header a"
+                }
+            ]
+        }
+    ]
 }

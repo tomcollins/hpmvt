@@ -27,10 +27,12 @@ exports.getVariantFormHtml = function(variant, isUpdated) {
   return html;
 }
 
-exports.getConfigFormHtml = function(config, error) {
+exports.getConfigFormHtml = function(config, hasUpdatedConfig, error) {
   var html = '<html><body>';
-  if (error) {
-    html += '<p style="color: red;font-weight: bold">' +error +'</p>';
+  if (hasUpdatedConfig) {
+    html += '<p style="color:green;font-weight:bold">Config updated.</p>';
+  } else if (error) {
+    html += '<p style="color:red;font-weight:bold">' +error +'</p>';
   }
   html += '<p style="margin-bottom: 5px">Edit config</p><form method="POST"><textarea name="config" style="margin-bottom: 10px" wrap="off" rows="30" cols="120">' +JSON.stringify(config, null, 4) +'</textarea><input style="display: block;clear: both" type="submit"/></form>';
   html += '</body></html>';

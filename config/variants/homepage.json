@@ -1,52 +1,52 @@
 {
-  "variants": [
-    {
-      "id": "main_promo_title_h530a850a",
-      "type": "text",
-      "selector": "#h530a850a h4 a",
-      "values": {
-        "v1": "Watch LIVE Tennis - Robson v Duque-Marino",
-        "v2": "Robson v Duque-Marino - Watch Live"
-      }
-    },
-    {
-      "id": "main_promo_image_h530a850a",
-      "type": "image",
-      "selector": "#h530a850a img",
-      "values": {
-        "v1": "http://www.standard.co.uk/incoming/article8046174.ece/ALTERNATES/w620/Laura-Robson-shows.jpg",
-        "v2": "http://static.guim.co.uk/sys-images/Sport/Pix/pictures/2012/6/26/1340750077597/Laura-Robson-during-her-m-001.jpg"
-      }
-    },
-    {
-      "id": "weather_location_background_colour",
-      "type": "css",
-      "values": {
-        "v1": "#h4weather .location .current .change{ background: #68F268; color: #333; padding: 3px 5px;font-weight: normal;}",
-        "v2": "#h4weather .location .current .change{ background: #8093E8; color: #fff; padding: 3px 5px;font-weight: normal;}"
-      },
-      "tracking": [
+    "variants": [
         {
-          "type": "click",
-          "selector": "#h4weather .location .current .change"
+            "id": "main_promo_title_h530a850a",
+            "type": "text",
+            "selector": "#h530a850a h4 a",
+            "values": {
+                "v1": "Watch LIVE Tennis - Robson v Duque-Marino2",
+                "v2": "Robson v Duque-Marino - Watch Live"
+            }
+        },
+        {
+            "id": "main_promo_image_h530a850a",
+            "type": "image",
+            "selector": "#h530a850a img",
+            "values": {
+                "v1": "http://www.standard.co.uk/incoming/article8046174.ece/ALTERNATES/w620/Laura-Robson-shows.jpg",
+                "v2": "http://static.guim.co.uk/sys-images/Sport/Pix/pictures/2012/6/26/1340750077597/Laura-Robson-during-her-m-001.jpg"
+            }
+        },
+        {
+            "id": "weather_location_background_colour",
+            "type": "css",
+            "values": {
+                "v1": "#h4weather .location .current .change{ background: #68F268; color: #333; padding: 3px 5px;font-weight: normal;}",
+                "v2": "#h4weather .location .current .change{ background: #8093E8; color: #fff; padding: 3px 5px;font-weight: normal;}"
+            },
+            "tracking": [
+                {
+                    "type": "click",
+                    "selector": "#h4weather .location .current .change"
+                }
+            ]
+        },
+        {
+            "id": "remove_clock",
+            "type": "remove_clock",
+            "values": {
+                "v1": true,
+                "v2": false
+            }
+        },
+        {
+            "id": "glastonbury_promo",
+            "type": "add_promo",
+            "values": {
+                "v1": false,
+                "v2": true
+            }
         }
-      ]
-    },
-    {
-      "id": "remove_clock",
-      "type": "remove_clock",
-      "values": {
-        "v1": true,
-        "v2": false
-      }
-    },
-    {
-      "id": "glastonbury_promo",
-      "type": "add_promo",
-      "values": {
-        "v1": false,
-        "v2": true
-      }
-    }
-  ]  
+    ]
 }
