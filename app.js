@@ -11,7 +11,7 @@ var app
   , hostname = os.hostname()
   , port = argv.port || 3000
   , projectId = argv.project || null
-  , analyticsHost = 'localhost:3001'
+  , analyticsHost = argv.analytics_host || null
   , projectConfig
   , variantConfigFile
   , variantConfig
@@ -27,14 +27,14 @@ if (!process.env.NODE_ENV) {
 }
 environment = process.env.NODE_ENV;
 
-if (argv.analytics_host) {
-  analyticsHost = argv.analytics_host;
-}
 
 // setup project
 
 if (!projectId) {
-  throw('No project set use app.js --project="projectId".')
+  throw('No project set use app.js --project=projectId.')
+}
+if (!analyticsHost) {
+  throw('No analytics host set use app.js --analytics_host=host.')
 }
 console.log('Load project config ./config/projects/' +projectId +'.json');
 projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
