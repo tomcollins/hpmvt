@@ -1,43 +1,103 @@
 var http = require('http')
   , fs = require('fs')
+  , path = require('path')
+  , os = require("os")
+  , argv = require('optimist').argv
   , express = require('express')
-  , jsdom = require("jsdom");
-
+  , httpdom = require('./httpdom')
+  , utils = require("./utils")
+ 
 var app
-  , htmlHeaders
-  , htmlBody
+  , hostname = os.hostname()
+  , port = argv.port || 3000
+  , projectId = argv.project || null
+  , projectConfig
+  , variantConfigFile
   , variantConfig
-  , jquery
-  , gaHtml
-  , useProxy = true;
+  , environment
+  , httpOptions
+  , analyticsHtml
+  , googleAnalyticsHtml;
 
-gaHtml = fs.readFileSync('./data/ga.html');
-variantConfig = JSON.parse(fs.readFileSync('./data/config.json'));
-jquery = fs.readFileSync("./vendor/jquery/jquery-1.9.1.min.js").toString();
+// detect env
+
+if (!process.env.NODE_ENV) {
+  throw('NODE_ENV is not set');
+}
+environment = process.env.NODE_ENV;
+
+// setup project
+
+if (!projectId) {
+  throw('No project set use app.js --project="projectId".')
+}
+console.log('Load project config ./config/projects/' +projectId +'.json');
+projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
+console.log('Setting up project ' +projectConfig.name);
+variantConfigFile = './config/variants/' +projectConfig.id +'.json';
+console.log('Load variant config ' +variantConfigFile);
+variantConfig = utils.readJsonSync(variantConfigFile);
+googleAnalyticsHtml = fs.readFileSync('./data/ga.html');
+analyticsHtml = fs.readFileSync('./data/analytics.html');
+
+// proxy config
+
+if (argv.http_proxy) {
+  httpOptions = {
+    host: argv.http_proxy,
+    port: 80,
+    path: projectConfig.protocol +'://' +projectConfig.host + projectConfig.path,
+    headers: {
+      Host: projectConfig.host
+    }
+  }
+  if (argv.http_proxy_port) {
+    httpOptions.port = argv.http_proxy_port;
+  }
+} else {
+  httpOptions = {
+    host: projectConfig.host,
+    path: projectConfig.path
+  }
+}
+
+// create express app
 
 app = express();
 
 app.configure(function(){
-  app.set('port', process.env.PORT || 3000);
+  app.set('port', port);
   app.use(express.cookieParser());
   app.use(express.bodyParser());
   app.use(express.methodOverride());
   app.use(app.router);
+});
+
+app.configure('development', function () {
   app.use(express.logger('dev'));
   app.use(express.errorHandler({dumpExceptions: true, showStack: true}));
+  app.use(express.static(path.join(__dirname, 'public'), { maxAge: 120 * 1000 }));
+});
+
+app.configure('production', function () {
+  app.use(express.compress());
+  app.use(express.errorHandler());
+  app.use(express.static(path.join(__dirname, 'public')));
 });
 
 app.get('/', function(req, res) {
-  var variant = getVariant(req, res);
-  modifyHtml(htmlBody, variant, function(html) {
-    res.writeHead(200, htmlHeaders);
-    res.write(html);
-    res.end();
+  var variant = utils.getVariant(req, res, true);
+  httpdom.getUri(httpOptions, function(window, options){
+    modifyDom(window, variant, function(html) {
+      res.writeHead(200, options.headers);
+      res.write(html);
+      res.end();
+    });
   });
 });
 
 app.get('/variant', function(req, res) {
-  var variant = getVariant(req, res)
+  var variant = utils.getVariant(req, res, false)
     , isUpdated = false;
   if (req.query && req.query.variant && req.query.variant != variant) {
     variant = req.query.variant;
@@ -45,13 +105,13 @@ app.get('/variant', function(req, res) {
     res.cookie('mvt', variant);
   }
   res.writeHead(200, htmlHeaders);
-  res.write(getVariantFormHtml(variant, isUpdated));
+  res.write(utils.getVariantFormHtml(variant, isUpdated));
   res.end();
 });
 
 app.get('/config', function(req, res) {
   res.writeHead(200, htmlHeaders);
-  res.write(getConfigFormHtml(variantConfig));
+  res.write(utils.getConfigFormHtml(variantConfig));
   res.end();
 });
 
@@ -69,7 +129,7 @@ app.post('/config', function(req, res){
     }
   }
   res.writeHead(200, htmlHeaders);
-  res.write(getConfigFormHtml(variantConfig, jsonError));
+  res.write(utils.getConfigFormHtml(variantConfig, jsonError));
   res.end();
 });
 
@@ -77,178 +137,75 @@ http.createServer(app).listen(app.get('port'), function(){
   console.log("Server listening on port " + app.get('port'));
 });
 
-updateHtml();
-setTimeout(function(){
-  console.log('Fetch fresh html.');
-  updateHtml();
-}, 60000);
+// DOM manipulation
 
-function getVariant(req, res) {
-  var variant = req.cookies.mvt;
-  if (!variant) {
-    variant = Math.random() <= 0.5 ? 'v1' : 'v2';
-    res.cookie('mvt', variant);
+function modifyDom(window, variant, callback) {
+  var $ = window.$
+    , html
+    , base = 'http://www.bbc.co.uk';
+  $('head').prepend('<script>bbccookies_flag="OFF"</script>');
+  if (base) {
+    $('head').append('<base href="' +base +'">');
   }
-  if (req.query && req.query.variant) {
-    variant = req.query.variant;
-  }
-  return variant;
-}
-
-function getVariantFormHtml(variant, isUpdated) {
-  var html = '<html><body>';
-  function makeOption(name, value) {
-    return '<option value="' +value +'" ' +(value == variant ? 'selected' : '') +'>' +name +'</option>';
-  }
-  if (isUpdated) {
-    html += '<p style="color: green;font-weight: bold">Your variant has been updated.</p>';
-  }
-  html += '<p style="margin-bottom: 5px">Set variant</p><form method="GET">';
-  html += '<select name="variant">' +makeOption('Variant 1', 'v1') +makeOption('Variant 2', 'v2') +'</select>';
-  html += '<input style="display: block;clear: both;margin-top: 10px" type="submit"/></form>';
-  html += '</body></html>';
-  return html;
-}
-
-function getConfigFormHtml(config, error) {
-  var html = '<html><body>';
-  if (error) {
-    html += '<p style="color: red;font-weight: bold">' +error +'</p>';
-  }
-  html += '<p style="margin-bottom: 5px">Edit config</p><form method="POST"><textarea name="config" style="margin-bottom: 10px" wrap="off" rows="30" cols="120">' +JSON.stringify(config, null, 4) +'</textarea><input style="display: block;clear: both" type="submit"/></form>';
-  html += '</body></html>';
-  return html;
-}
-
-function modifyHtml(html, variant, callback) {
-  createJsDomEnv(html, function(errors, window) {
-    var $ = window.$;
-    variantConfig.variants.forEach(function(variantData){
-      if ('text' === variantData.type) {
-        $(variantData.selector).text(variantData.values[variant]);
-      } else if ('image' === variantData.type) {
-        $(variantData.selector).attr('src', variantData.values[variant]);
-      } else if ('css' === variantData.type) {
-        $('<style type="text/css">' +variantData.values[variant] +'</style>').appendTo('head');
-      } else if ('remove_clock' === variantData.type && variantData.values[variant]) {
-        replaceRequireMapValue($, 
-          'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
-          'http://static.stage.bbci.co.uk/h4clock/0.69.2/modules/h4clock'
-        );
-        replaceCssHref($,
-          'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
-          'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
-        );
-      } else if ('add_promo' === variantData.type && variantData.values[variant]) {
-        var promo = '<div style="position:relative;width:976px;height:168px;margin:0 auto;">'
-        + '<a href="http://www.bbc.co.uk/events/ej58q9">'
-        + '<img src="http://s16.postimg.org/44o4nm4b9/Screen_shot_2013_06_28_at_10_54_04.png" width="976px" height="168px />"'
-        + '</div>';
-        $('#h4-container').prepend(promo);
-      }
-    });
-    $('body').append(getAnalyticHtml(variant));
-    callback($('html').html());
+  variantConfig.variants.forEach(function(variantData){
+    applyVariantModification($, variantData, variant);
   });
+
+  $('body').append(getAnalyticsScript(variantConfig, variant));
+
+  // some issues appending a script tag (it is loaded by jsdom so ends up in source twice) 
+  html = $('html').html();
+  html = html.replace('</body>', '<script type="text/javascript" src="http://localhost:3000/js/analytics.js"></script></body>');  
+  callback(html);
+  
+  //callback($('html').html());
 };
 
-function replaceCssHref($, search, replace) {
-  var link, href;
-  $('link[rel="stylesheet"]').each(function(){
-    link = $(this);
-    href = link.attr('href');
-    if (href === search) {
-      link.attr('href', replace);
-    }
-  });
-}
+function applyVariantModification($, variantData, variant) {
+  if ('text' === variantData.type) {
+    $(variantData.selector).text(variantData.values[variant]);
+  } else if ('html_replace' === variantData.type) {
+    var element = $(variantData.selector)
+      , html = element.html();
+    element.html(html.replace(variantData.target, variantData.values[variant]));
+  } else if ('image' === variantData.type) {
+    $(variantData.selector).attr('src', variantData.values[variant]);
+  } else if ('css' === variantData.type) {
+    $('<style type="text/css">' +variantData.values[variant] +'</style>').appendTo('head');
+  } else if ('remove_clock' === variantData.type && variantData.values[variant]) {
+    utils.replaceRequireMapValue($, 
+      'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
+      'http://static.stage.bbci.co.uk/h4clock/0.69.2/modules/h4clock'
+    );
+    utils.replaceCssHref($,
+      'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
+      'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
+    );
+  } else if ('add_promo' === variantData.type && variantData.values[variant]) {
+    var promo = '<div style="position:relative;width:976px;height:168px;margin:0 auto;">'
+    + '<a href="http://www.bbc.co.uk/events/ej58q9">'
+    + '<img src="http://s16.postimg.org/44o4nm4b9/Screen_shot_2013_06_28_at_10_54_04.png" width="976px" height="168px />"'
+    + '</div>';
+    $('#h4-container').prepend(promo);
+  }
+};
 
-function replaceRequireMapValue($, search, replace) {
-  var script, text;
-  $('script').each(function(){
-    script = $(this);
-    text = script.text();
-    if (text.indexOf(search) !== -1) {
-      text = text.replace(search, replace);
-      script.text(text);
+function getAnalyticsScript(variantConfig, variant) {
+  var script = '<script type="text/javascript">var _analytics = {variant: "' +variant +'", variants: []};';
+  script 
+  variantConfig.variants.forEach(function(variantData){
+    if (variantData.conversion && variantData.conversion.selector) {
+      script += '_analytics.variants.push(["' +variantData.conversion.selector +'"])';
     }
   });
-}
+  script += '</script>';
+  return script;
+};
 
 function getAnalyticHtml(variant) {
-  var response = String(gaHtml);
+  var response;
+  var response = String(googleAnalyticsHtml);
   response = response.replace(/_variant_/g, variant);
   return response;
 };
 
-function updateHtml() {
-  console.log('Updating page...');
-  var tempHtml
-    , req;
-
-  var options;
-  if (useProxy) {
-    options = {
-      host: 'www-cache.reith.bbc.co.uk',
-      port: 80,
-      path: "http://www.bbc.co.uk",
-      headers: {
-        Host: "www.bbc.co.uk"
-      }
-    }
-  } else {
-    options = {
-      host: 'www.bbc.co.uk'
-    }
-  }
-  req = http.request(options, function(res) {
-    console.log('Response status: ' + res.statusCode);
-    htmlHeaders = res.headers;
-    writeFile('./data/headers.txt', JSON.stringify(htmlHeaders));
-    var tempHtml = '';
-    res.on('data', function (chunk) {
-      tempHtml += chunk;
-    });
-    res.on('end', function () {
-      console.log('Page updated');
-      prepareHtml(tempHtml, function(html) {
-        htmlBody = html;
-        writeFile('./data/body.html', htmlBody);
-      });
-    });
-  });
-  req.on('error', function(e) {
-    console.log('Request error: ' + e.message);
-  });
-  req.end();
-};
-
-function prepareHtml(html, callback) {
-  createJsDomEnv(html, function(errors, window) {
-    var $ = window.$;
-    $('head').prepend('<script>bbccookies_flag="OFF"</script>');
-    callback($('html').html());
-  });
-};
-
-function createJsDomEnv(html, callback) {
-  jsdom.env({
-    html: html,
-    src: [jquery],
-    features: {
-      FetchExternalResources: false,
-      ProcessExternalResources: false
-    },
-    done: callback
-  });
-};
-
-function writeFile(file, content) {
-  fs.writeFile(file, content, function (err) {
-    if (err) {
-      console.log('Error saving', file);
-    } else {
-      console.log('Saved', file);
-    }
-  });
-};

@@ -21,6 +21,9 @@
       "values": {
         "v1": "#h4weather .location .current .change{ background: #68F268; color: #333; padding: 3px 5px;font-weight: normal;}",
         "v2": "#h4weather .location .current .change{ background: #8093E8; color: #fff; padding: 3px 5px;font-weight: normal;}"
+      },
+      "conversion": {
+        "selector": "#h4weather .location .current .change"
       }
     },
     {

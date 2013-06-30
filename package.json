@@ -9,8 +9,7 @@
   "subdomain": "hpproxy",
   "dependencies": {
     "express": "3.0.3",
-    "versionator": "0.2.1",
-    "jsdom": "0.6.5"
+    "optimist": "0.5"
   },
   "devDependencies": {},
   "engines": {

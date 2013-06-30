@@ -1,0 +1,25 @@
+<script type="text/javascript">
+
+console.log('script');
+var domscript = document.createElement('script');
+domscript.src = 'http://localhost:3000/js/analytics.js';
+document.getElementsByTagName('head')[0].appendChild(domscript);
+  /*
+  //(function() {
+    console.log('analytics');
+    var a = document.createElement('script'); 
+    a.type = 'text/javascript'; 
+    a.async = true;
+    //a.async = 'async';
+    a.src = 'http://localhost:3000/js/analytics.js';
+    
+    //var s = document.getElementsByTagName('script')[0];
+    //s.parentNode.insertBefore(a, s);
+    
+    // document.getElementsByTagName('head')[0].appendChild(a);
+    var head = document.getElementsByTagName ("head")[0] || document.documentElement;
+    debugger;
+    head.insertBefore(a, head.firstChild);
+    */
+  //})();
+</script>

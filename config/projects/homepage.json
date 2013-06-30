@@ -1,0 +1,7 @@
+{
+  "id": "homepage",
+  "name": "Homepage",
+  "protocol": "http",
+  "host": "www.bbc.co.uk",
+  "path": "/"
+}
