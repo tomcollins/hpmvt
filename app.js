@@ -9,9 +9,10 @@ var http = require('http')
  
 var app
   , hostname = os.hostname()
+  , host = argv.host || 'localhost'
   , port = argv.port || 3000
   , projectId = argv.project || null
-  , analyticsHost = argv.analytics_host || null
+  , analyticsHost = argv.analytics_host || 'localhost:4000'
   , projectConfig
   , variantConfigFile
   , variantConfig
@@ -36,12 +37,9 @@ environment = process.env.NODE_ENV;
 if (!projectId) {
   throw('No project set use app.js --project=projectId.')
 }
-if (!analyticsHost) {
-  throw('No analytics host set use app.js --analytics_host=host.')
-}
+
 console.log('Load project config ./config/projects/' +projectId +'.json');
 projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
-console.log('Setting up project ' +projectConfig.name);
 variantConfigFile = './config/variants/' +projectConfig.id +'.json';
 console.log('Load variant config ' +variantConfigFile);
 variantConfig = utils.readJsonSync(variantConfigFile);
@@ -165,7 +163,7 @@ function modifyDom(window, variant, callback) {
 
   // some issues appending a script tag (it is loaded by jsdom so ends up in source twice) 
   html = $('html').html();
-  html = html.replace('</body>', '<script type="text/javascript" src="http://localhost:3000/js/analytics.js"></script></body>');  
+  html = html.replace('</body>', '<script type="text/javascript" src="http://' +host +':' +port +'/js/analytics.js"></script></body>');  
   callback(html);
   
   //callback($('html').html());
