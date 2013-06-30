@@ -191,12 +191,21 @@ function applyVariantModification($, variantData, variant) {
 };
 
 function getAnalyticsScript(variantConfig, variant) {
-  var script = '<script type="text/javascript">var _analytics = {variant: "' +variant +'", variants: []};';
-  script 
+  var script = '<script type="text/javascript">var _analytics = {project: "' +projectId +'",variant: "' +variant +'", queue: []};'
+    , conversionSelector;
+
   variantConfig.variants.forEach(function(variantData){
-    if (variantData.conversion && variantData.conversion.selector) {
-      script += '_analytics.variants.push(["' +variantData.conversion.selector +'"])';
+    script += '_analytics.queue.push(["view", "' +variantData.id +'"]);';
+    if (variantData.tracking) {
+      variantData.tracking.forEach(function(tracking){
+        if ('click' == tracking.type) {
+          script += '_analytics.queue.push(["click", "' +variantData.id +'", "' +tracking.selector +'"]);';
+        }
+      });
+    } else {
+      conversionSelector = null;
     }
+    
   });
   script += '</script>';
   return script;

@@ -1,6 +1,7 @@
 {
   "variants": [
     {
+      "id": "main_promo_title_h530a850a",
       "type": "text",
       "selector": "#h530a850a h4 a",
       "values": {
@@ -9,6 +10,7 @@
       }
     },
     {
+      "id": "main_promo_image_h530a850a",
       "type": "image",
       "selector": "#h530a850a img",
       "values": {
@@ -17,16 +19,21 @@
       }
     },
     {
+      "id": "weather_location_background_colour",
       "type": "css",
       "values": {
         "v1": "#h4weather .location .current .change{ background: #68F268; color: #333; padding: 3px 5px;font-weight: normal;}",
         "v2": "#h4weather .location .current .change{ background: #8093E8; color: #fff; padding: 3px 5px;font-weight: normal;}"
       },
-      "conversion": {
-        "selector": "#h4weather .location .current .change"
-      }
+      "tracking": [
+        {
+          "type": "click",
+          "selector": "#h4weather .location .current .change"
+        }
+      ]
     },
     {
+      "id": "remove_clock",
       "type": "remove_clock",
       "values": {
         "v1": true,
@@ -34,6 +41,7 @@
       }
     },
     {
+      "id": "glastonbury_promo",
       "type": "add_promo",
       "values": {
         "v1": false,
