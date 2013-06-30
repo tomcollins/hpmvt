@@ -1,7 +1,7 @@
 require(["jquery-1", "domReady"], function($){
 
   function track(type, project, experiment, variant) {
-    var uri = 'http://localhost:3001/track?stat=' +type +':' +project +':' +experiment +':' +variant
+    var uri = 'http://' +_analytics.host +'/track?stat=' +type +':' +project +':' +experiment +':' +variant
       , html = '<img src="' +uri +'" style="position:absolute;left:-9999px;" width="1" height="1" />';
     $('body').append(html);
   };

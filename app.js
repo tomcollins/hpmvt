@@ -11,6 +11,7 @@ var app
   , hostname = os.hostname()
   , port = argv.port || 3000
   , projectId = argv.project || null
+  , analyticsHost = 'localhost:3001'
   , projectConfig
   , variantConfigFile
   , variantConfig
@@ -25,6 +26,10 @@ if (!process.env.NODE_ENV) {
   throw('NODE_ENV is not set');
 }
 environment = process.env.NODE_ENV;
+
+if (argv.analytics_host) {
+  analyticsHost = argv.analytics_host;
+}
 
 // setup project
 
@@ -191,7 +196,7 @@ function applyVariantModification($, variantData, variant) {
 };
 
 function getAnalyticsScript(variantConfig, variant) {
-  var script = '<script type="text/javascript">var _analytics = {project: "' +projectId +'",variant: "' +variant +'", queue: []};'
+  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
     , conversionSelector;
 
   variantConfig.variants.forEach(function(variantData){
