@@ -127,7 +127,10 @@ http.createServer(app).listen(app.get('port'), function(){
 
 
 function updateExperiments() {
-  var options = utils.getHttpOptions('http', analyticsHost, analyticsPort, '/experiments/project/' +projectId);
+  var options = utils.getHttpOptions(
+    'http', analyticsHost, analyticsPort, 
+    '/experiments/project/' +projectId +'?enabled=true'
+  );
   utils.getJson(options, function(result){
     experimentConfig = result;
   });
