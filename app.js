@@ -4,8 +4,8 @@ var http = require('http')
   , os = require("os")
   , argv = require('optimist').argv
   , express = require('express')
-  , httpdom = require('./httpdom')
-  , utils = require("./utils")
+  , cheerio = require('cheerio')
+  , utils = require("./utils");
  
 var app
   , hostname = os.hostname()
@@ -70,15 +70,21 @@ app.configure('production', function () {
 });
 
 app.get('/', function(req, res) {
-  var variant = utils.getVariant(req, res, true);
-  httpdom.getUri(httpOptions, function(window, options){
-    modifyDom(window, variant, function(html) {
-      res.writeHead(200, options.headers);
+  var variant = utils.getVariant(req, res, true)
+    , $;
+  utils.getHttp(httpOptions, function(httpResponse, httpBody){
+    $ = cheerio.load(httpBody, {
+      ignoreWhitespace: true,
+      xmlMode: false
+    });
+    modifyDom($, variant, function(html){
+      res.writeHead(200, httpResponse.headers);
       res.write(html);
       res.end();
     });
   });
 });
+
 
 app.get('/variant', function(req, res) {
   var variant = utils.getVariant(req, res, false)
@@ -93,38 +99,9 @@ app.get('/variant', function(req, res) {
   res.end();
 });
 
-app.get('/config', function(req, res) {
-  res.writeHead(200, htmlHeaders);
-  res.write(utils.getConfigFormHtml(variantConfig));
-  res.end();
-});
-
-app.post('/config', function(req, res){
-  var requestConfig, jsonError, hasUpdatedConfig = false;
-  if (req.body && req.body.config) {
-    try {
-      requestConfig = JSON.parse(req.body.config);
-      if (requestConfig) {
-        hasUpdatedConfig = true;
-        utils.writeFile(variantConfigFile, req.body.config);
-        variantConfig = requestConfig;
-      }
-    } catch (e) {
-      console.log('Error parsing config', e);
-      jsonError = e;
-    }
-  }
-  res.writeHead(200, htmlHeaders);
-  res.write(utils.getConfigFormHtml(variantConfig, hasUpdatedConfig, jsonError));
-  res.end();
-});
-
-
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Server listening on port " + app.get('port'));
 });
-
-
 
 function updateExperiments() {
   var options = utils.getHttpOptions(
@@ -136,30 +113,35 @@ function updateExperiments() {
   });
 }
 updateExperiments();
-setTimeout(updateExperiments, 10000);
+setInterval(updateExperiments, 10000);
 
 // DOM manipulation
 
-function modifyDom(window, variant, callback) {
-  var $ = window.$
-    , html
+function modifyDom($, variant, callback) {
+  var html
+    , prepend = ''
     , base = 'http://www.bbc.co.uk';
-  $('head').prepend('<script>bbccookies_flag="OFF"</script>');
+
+  prepend = '<script>bbccookies_flag="OFF"</script>';
   if (base) {
-    $('head').append('<base href="' +base +'">');
+    prepend += '<base href="' +base +'"/>';
   }
-  experimentConfig.forEach(function(experiment){
-    applyVariantModification($, experiment, variant);
-  });
+  $('head').prepend(prepend);
 
-  $('body').append(getAnalyticsScript(experimentConfig, variant));
+  if (experimentConfig) {
+    experimentConfig.forEach(function(experiment){
+      applyVariantModification($, experiment, variant);
+    });
 
+    $('body').append(getAnalyticsScript(experimentConfig, variant));
+  }
+
+  $('body').append('<script type="text/javascript" src="http://' +host +':' +port +'/js/analytics.js"></script>');
   // some issues appending a script tag (it is loaded by jsdom so ends up in source twice) 
-  html = $('html').html();
-  html = html.replace('</body>', '<script type="text/javascript" src="http://' +host +':' +port +'/js/analytics.js"></script></body>');  
-  callback(html);
+  //html = $('html').html();
+  //html = html.replace('</body>', '<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/analytics.js"></script></body>');  
   
-  //callback($('html').html());
+  callback($.html());
 };
 
 function applyVariantModification($, experiment, variant) {

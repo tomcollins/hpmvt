@@ -58,7 +58,7 @@ exports.replaceRequireMapValue = function($, search, replace) {
     text = script.text();
     if (text.indexOf(search) !== -1) {
       text = text.replace(search, replace);
-      script.text(text);
+      script.html(text);
     }
   });
 }
@@ -119,4 +119,23 @@ exports.getHttpOptions = function(protocol, host, port, path, http_proxy, http_p
     }
   }
   return options;
-}
+};
+
+exports.getHttp = function(options, callback) {
+  var req;
+
+  req = http.request(options, function(res) {
+    var html = '';
+    res.on('data', function (chunk) {
+      html += chunk;
+    });
+    res.on('end', function () {
+      callback(res, html);
+    });
+  });
+  req.on('error', function(e) {
+    console.log('Request error: ' + e.message);
+  });
+  req.end();
+
+};
