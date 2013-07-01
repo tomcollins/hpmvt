@@ -154,7 +154,7 @@ function applyVariantModification($, experiment, variant) {
   } else if ('image' === experiment.type) {
     $(experiment.selector).attr('src', experiment.values[variant]);
   } else if ('css' === experiment.type) {
-    $('<style type="text/css">' +experiment.values[variant] +'</style>').appendTo('head');
+    $('head').append('<style type="text/css">' +experiment.values[variant] +'</style>');
   } else if ('remove_clock' === experiment.type && experiment.values[variant]) {
     utils.replaceRequireMapValue($, 
       'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
