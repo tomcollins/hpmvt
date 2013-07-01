@@ -1,16 +1,21 @@
 require(["jquery-1", "domReady"], function($){
 
   function track(type, project, experiment, variant) {
-    var uri = 'http://' +_analytics.host +'/track?stat=' +type +':' +project +':' +experiment +':' +variant
+    var uri = 'http://' +_analytics.host +':' +_analytics.port +'/track?stat=' +type +':' +project +':' +experiment +':' +variant
       , html = '<img src="' +uri +'" style="position:absolute;left:-9999px;" width="1" height="1" />';
     $('body').append(html);
   };
 
   function captureClick(experiment, selector) {
-    var element = $(selector)[0];
-    element.addEventListener('click', function(e) {
-        track('click', _analytics.project, experiment, _analytics.variant);
-    }, true);
+    var element = $(selector);
+    if (element && element.length) {
+      element = element[0];
+      element.addEventListener('click', function(e) {
+          track('click', _analytics.project, experiment, _analytics.variant);
+      }, true);
+    } else {
+      console.log('Bad click selector', selector);
+    }
   }
 
   if (_analytics && _analytics.queue) {

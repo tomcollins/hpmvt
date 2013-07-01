@@ -12,10 +12,10 @@ var app
   , host = argv.host || 'localhost'
   , port = argv.port || 3000
   , projectId = argv.project || null
-  , analyticsHost = argv.analytics_host || 'localhost:4000'
+  , analyticsHost = argv.analytics_host || 'localhost'
+  , analyticsPort = argv.analytics_port || '4000'
   , projectConfig
-  , variantConfigFile
-  , variantConfig
+  , experimentConfig
   , environment
   , httpOptions
   , htmlHeaders = {
@@ -40,32 +40,10 @@ if (!projectId) {
 
 console.log('Load project config ./config/projects/' +projectId +'.json');
 projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
-variantConfigFile = './config/variants/' +projectConfig.id +'.json';
-console.log('Load variant config ' +variantConfigFile);
-variantConfig = utils.readJsonSync(variantConfigFile);
 googleAnalyticsHtml = fs.readFileSync('./data/ga.html');
 analyticsHtml = fs.readFileSync('./data/analytics.html');
 
-// proxy config
-
-if (argv.http_proxy) {
-  httpOptions = {
-    host: argv.http_proxy,
-    port: 80,
-    path: projectConfig.protocol +'://' +projectConfig.host + projectConfig.path,
-    headers: {
-      Host: projectConfig.host
-    }
-  }
-  if (argv.http_proxy_port) {
-    httpOptions.port = argv.http_proxy_port;
-  }
-} else {
-  httpOptions = {
-    host: projectConfig.host,
-    path: projectConfig.path
-  }
-}
+httpOptions = utils.getHttpOptions(projectConfig.protocol, projectConfig.host, 80, projectConfig.path, argv.http_proxy, argv.http_proxy_port)
 
 // create express app
 
@@ -141,9 +119,21 @@ app.post('/config', function(req, res){
   res.end();
 });
 
+
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Server listening on port " + app.get('port'));
 });
+
+
+
+function updateExperiments() {
+  var options = utils.getHttpOptions('http', analyticsHost, analyticsPort, '/experiments/project/' +projectId);
+  utils.getJson(options, function(result){
+    experimentConfig = result;
+  });
+}
+updateExperiments();
+setTimeout(updateExperiments, 10000);
 
 // DOM manipulation
 
@@ -155,11 +145,11 @@ function modifyDom(window, variant, callback) {
   if (base) {
     $('head').append('<base href="' +base +'">');
   }
-  variantConfig.variants.forEach(function(variantData){
-    applyVariantModification($, variantData, variant);
+  experimentConfig.forEach(function(experiment){
+    applyVariantModification($, experiment, variant);
   });
 
-  $('body').append(getAnalyticsScript(variantConfig, variant));
+  $('body').append(getAnalyticsScript(experimentConfig, variant));
 
   // some issues appending a script tag (it is loaded by jsdom so ends up in source twice) 
   html = $('html').html();
@@ -169,18 +159,18 @@ function modifyDom(window, variant, callback) {
   //callback($('html').html());
 };
 
-function applyVariantModification($, variantData, variant) {
-  if ('text' === variantData.type) {
-    $(variantData.selector).text(variantData.values[variant]);
-  } else if ('html_replace' === variantData.type) {
-    var element = $(variantData.selector)
+function applyVariantModification($, experiment, variant) {
+  if ('text' === experiment.type) {
+    $(experiment.selector).text(experiment.values[variant]);
+  } else if ('html_replace' === experiment.type) {
+    var element = $(experiment.selector)
       , html = element.html();
-    element.html(html.replace(variantData.search, variantData.values[variant]));
-  } else if ('image' === variantData.type) {
-    $(variantData.selector).attr('src', variantData.values[variant]);
-  } else if ('css' === variantData.type) {
-    $('<style type="text/css">' +variantData.values[variant] +'</style>').appendTo('head');
-  } else if ('remove_clock' === variantData.type && variantData.values[variant]) {
+    element.html(html.replace(experiment.search, experiment.values[variant]));
+  } else if ('image' === experiment.type) {
+    $(experiment.selector).attr('src', experiment.values[variant]);
+  } else if ('css' === experiment.type) {
+    $('<style type="text/css">' +experiment.values[variant] +'</style>').appendTo('head');
+  } else if ('remove_clock' === experiment.type && experiment.values[variant]) {
     utils.replaceRequireMapValue($, 
       'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
       'http://static.stage.bbci.co.uk/h4clock/0.69.2/modules/h4clock'
@@ -189,7 +179,7 @@ function applyVariantModification($, variantData, variant) {
       'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
       'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
     );
-  } else if ('add_promo' === variantData.type && variantData.values[variant]) {
+  } else if ('add_promo' === experiment.type && experiment.values[variant]) {
     var promo = '<div style="position:relative;width:976px;height:168px;margin:0 auto;">'
     + '<a href="http://www.bbc.co.uk/events/ej58q9">'
     + '<img src="http://s16.postimg.org/44o4nm4b9/Screen_shot_2013_06_28_at_10_54_04.png" width="976px" height="168px />"'
@@ -199,15 +189,15 @@ function applyVariantModification($, variantData, variant) {
 };
 
 function getAnalyticsScript(variantConfig, variant) {
-  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
+  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
     , conversionSelector;
 
-  variantConfig.variants.forEach(function(variantData){
-    script += '_analytics.queue.push(["view", "' +variantData.id +'"]);';
-    if (variantData.tracking) {
-      variantData.tracking.forEach(function(tracking){
+  experimentConfig.forEach(function(experiment){
+    script += '_analytics.queue.push(["view", "' +experiment._id +'"]);';
+    if (experiment.tracking) {
+      experiment.tracking.forEach(function(tracking){
         if ('click' == tracking.type) {
-          script += '_analytics.queue.push(["click", "' +variantData.id +'", "' +tracking.selector +'"]);';
+          script += '_analytics.queue.push(["click", "' +experiment._id +'", "' +tracking.selector +'"]);';
         }
       });
     } else {
