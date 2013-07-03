@@ -1,14 +1,20 @@
 var http = require('http')
   , fs = require('fs');
 
+exports.getVariantIndex = function(nofVariants, variant) {
+  return Math.floor(nofVariants * variant/100);
+}
+
 exports.getVariant = function(req, res, allowQueryString) {
-  var variant = req.cookies.mvt;
+  var variant = req.cookies.hpmvt;
   if (!variant) {
-    variant = Math.random() <= 0.5 ? 'v1' : 'v2';
-    res.cookie('mvt', variant);
+    variant = Math.random().toFixed(2) * 100;
+    res.cookie('hpmvt', variant);
   }
   if (allowQueryString && req.query && req.query.variant) {
     variant = req.query.variant;
+    if ('v1' == variant) variant = 0;
+    else if ('v2' == variant) variant = 100;
   }
   return variant;
 }

@@ -2,6 +2,7 @@ var http = require('http')
   , fs = require('fs')
   , path = require('path')
   , os = require("os")
+  , vm = require("vm")
   , argv = require('optimist').argv
   , express = require('express')
   , cheerio = require('cheerio')
@@ -85,14 +86,13 @@ app.get('/', function(req, res) {
   });
 });
 
-
 app.get('/variant', function(req, res) {
   var variant = utils.getVariant(req, res, false)
     , isUpdated = false;
   if (req.query && req.query.variant && req.query.variant != variant) {
     variant = req.query.variant;
     isUpdated = true;
-    res.cookie('mvt', variant);
+    res.cookie('hpmvt', variant);
   }
   res.writeHead(200, htmlHeaders);
   res.write(utils.getVariantFormHtml(variant, isUpdated));
@@ -115,8 +115,6 @@ function updateExperiments() {
 updateExperiments();
 setInterval(updateExperiments, 10000);
 
-// DOM manipulation
-
 function modifyDom($, variant, callback) {
   var html
     , prepend = ''
@@ -130,62 +128,46 @@ function modifyDom($, variant, callback) {
 
   if (experimentConfig) {
     experimentConfig.forEach(function(experiment){
-      applyVariantModification($, experiment, variant);
+      if (experiment.variants) {
+        variantIndex = utils.getVariantIndex(experiment.variants.length, variant);
+        applyModification($, experiment.variants[variantIndex]);
+      }
     });
-
     $('body').append(getAnalyticsScript(experimentConfig, variant));
   }
 
   $('body').append('<script type="text/javascript" src="http://' +host +':' +port +'/js/analytics.js"></script>');
-  // some issues appending a script tag (it is loaded by jsdom so ends up in source twice) 
-  //html = $('html').html();
-  //html = html.replace('</body>', '<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/analytics.js"></script></body>');  
   
   callback($.html());
 };
 
-function applyVariantModification($, experiment, variant) {
-  if ('text' === experiment.type) {
-    $(experiment.selector).text(experiment.values[variant]);
-  } else if ('jquery_method' === experiment.type && experiment.method) {
-    $(experiment.selector)[experiment.method](experiment.values[variant]);
-  } else if ('html_replace' === experiment.type) {
-    var element = $(experiment.selector);
-    if (element.length > 0) {
-      element.html(element.html().replace(experiment.search, experiment.values[variant]));
+function applyModification($, variant) {
+  this.$ = $;
+  if (variant.jquery && variant.jquery.server) {
+    try {
+      vm.runInThisContext(variant.jquery.server);
+    } catch (e) {
+      console.log('Error parsing jquery', e);
+      return;
     }
-  } else if ('image' === experiment.type) {
-    $(experiment.selector).attr('src', experiment.values[variant]);
-  } else if ('css' === experiment.type) {
-    $('head').append('<style type="text/css">' +experiment.values[variant] +'</style>');
-  } else if ('remove_clock' === experiment.type && experiment.values[variant]) {
-    utils.replaceRequireMapValue($, 
-      'http://static.bbci.co.uk/h4clock/0.68.0/modules/h4clock',
-      'http://static.stage.bbci.co.uk/h4clock/0.69.2/modules/h4clock'
-    );
-    utils.replaceCssHref($,
-      'http://static.bbci.co.uk/h4clock/0.68.0/style/h4clock.css',
-      'http://static.stage.bbci.co.uk/h4clock/0.69.2/style/h4clock.css'
-    );
-  } else if ('add_promo' === experiment.type && experiment.values[variant]) {
-    var promo = '<div style="position:relative;width:976px;height:168px;margin:0 auto;">'
-    + '<a href="http://www.bbc.co.uk/events/ej58q9">'
-    + '<img src="http://s16.postimg.org/44o4nm4b9/Screen_shot_2013_06_28_at_10_54_04.png" width="976px" height="168px />"'
-    + '</div>';
-    $('#h4-container').prepend(promo);
   }
-};
+  if (variant.css) {
+    $('head').append('<style type="text/css">' +variant.css +'</style>');
+  }
+}
 
 function getAnalyticsScript(variantConfig, variant) {
   var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
-    , conversionSelector;
+    , conversionSelector
+    , variantIndex;
 
   experimentConfig.forEach(function(experiment){
-    script += '_analytics.queue.push(["view", "' +experiment._id +'"]);';
+    variantIndex = utils.getVariantIndex(experiment.variants.length, variant);
+    script += '_analytics.queue.push(["view", "' +experiment._id +'", "' +variantIndex +'"]);';
     if (experiment.tracking) {
       experiment.tracking.forEach(function(tracking){
         if ('click' == tracking.type) {
-          script += '_analytics.queue.push(["click", "' +experiment._id +'", "' +tracking.selector +'"]);';
+          script += '_analytics.queue.push(["click", "' +experiment._id +'","' +variantIndex +'","' +tracking.selector +'"]);';
         }
       });
     } else {
@@ -196,11 +178,3 @@ function getAnalyticsScript(variantConfig, variant) {
   script += '</script>';
   return script;
 };
-
-function getAnalyticHtml(variant) {
-  var response;
-  var response = String(googleAnalyticsHtml);
-  response = response.replace(/_variant_/g, variant);
-  return response;
-};
-

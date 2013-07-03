@@ -6,12 +6,12 @@ require(["jquery-1", "domReady"], function($){
     $('body').append(html);
   };
 
-  function captureClick(experiment, selector) {
+  function captureClick(experiment, variant, selector) {
     var element = $(selector);
     if (element && element.length) {
       element = element[0];
       element.addEventListener('click', function(e) {
-          track('click', _analytics.project, experiment, _analytics.variant);
+          track('click', _analytics.project, experiment, variant);
       }, true);
     } else {
       console.log('Bad click selector', selector);
@@ -21,9 +21,9 @@ require(["jquery-1", "domReady"], function($){
   if (_analytics && _analytics.queue) {
     $.each(_analytics.queue, function(index, item) {
       if ('view' == item[0]) {
-        track('view', _analytics.project, item[1], _analytics.variant);
+        track('view', _analytics.project, item[1], item[2]);
       } else if ('click' == item[0]) {
-        captureClick(item[1], item[2]);
+        captureClick(item[1], item[2], item[3]);
       }
     });
   }
