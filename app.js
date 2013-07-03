@@ -147,6 +147,8 @@ function modifyDom($, variant, callback) {
 function applyVariantModification($, experiment, variant) {
   if ('text' === experiment.type) {
     $(experiment.selector).text(experiment.values[variant]);
+  } else if ('jquery_method' === experiment.type && experiment.method) {
+    $(experiment.selector)[experiment.method](experiment.values[variant]);
   } else if ('html_replace' === experiment.type) {
     var element = $(experiment.selector);
     if (element.length > 0) {
