@@ -149,7 +149,7 @@ function applyVariantModification($, experiment, variant) {
     $(experiment.selector).text(experiment.values[variant]);
   } else if ('html_replace' === experiment.type) {
     var element = $(experiment.selector);
-    if (element) {
+    if (element.length > 0) {
       element.html(element.html().replace(experiment.search, experiment.values[variant]));
     }
   } else if ('image' === experiment.type) {
