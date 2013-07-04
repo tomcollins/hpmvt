@@ -44,7 +44,8 @@ projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
 googleAnalyticsHtml = fs.readFileSync('./data/ga.html');
 analyticsHtml = fs.readFileSync('./data/analytics.html');
 
-httpOptions = utils.getHttpOptions(projectConfig.protocol, projectConfig.host, 80, projectConfig.path, argv.http_proxy, argv.http_proxy_port)
+if (!projectConfig.headers) projectConfig.headers = {};
+httpOptions = utils.getHttpOptions(projectConfig.protocol, projectConfig.host, 80, projectConfig.path, argv.http_proxy, argv.http_proxy_port, projectConfig.headers);
 
 // create express app
 
@@ -117,13 +118,11 @@ setInterval(updateExperiments, 10000);
 
 function modifyDom($, variant, callback) {
   var html
-    , prepend = ''
-    , base = 'http://www.bbc.co.uk';
+    , prepend = '';
 
-  prepend = '<script>bbccookies_flag="OFF"</script>';
-  if (base) {
-    prepend += '<base href="' +base +'"/>';
-  }
+  prepend = '<script>bbccookies_flag="OFF"</script>'
+    + '<base href="http://' +projectConfig.host +'"/>';
+
   $('head').prepend(prepend);
 
   if (experimentConfig) {

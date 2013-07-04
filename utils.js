@@ -101,8 +101,10 @@ exports.writeFile = function(file, content) {
   });
 };
 
-exports.getHttpOptions = function(protocol, host, port, path, http_proxy, http_proxy_port) {
-  var options;
+exports.getHttpOptions = function(protocol, host, port, path, http_proxy, http_proxy_port, headers) {
+  var options,
+    header;
+
   if (http_proxy) {
     options = {
       host: http_proxy,
@@ -120,11 +122,15 @@ exports.getHttpOptions = function(protocol, host, port, path, http_proxy, http_p
   } else {
     options = {
       host: host,
-      path: path
+      path: path,
+      headers: {}
     };
     if (port) {
       options.port = port;
     }
+  }
+  if (headers) {
+    for(header in headers) options.headers[header] = headers[header];
   }
   return options;
 };
