@@ -8,7 +8,7 @@ exports.getVariantIndex = function(nofVariants, variant) {
 exports.getVariant = function(req, res, allowQueryString) {
   var variant = req.cookies.hpmvt;
   if (0 > variant) variant = 0;
-  else if (100 < variant) variant = 99;
+  else if (100 <= variant) variant = 99;
   if (!variant) {
     variant = Math.random().toFixed(2) * 100;
     res.cookie('hpmvt', variant);
