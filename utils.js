@@ -14,8 +14,10 @@ exports.getVariant = function(req, res, allowQueryString) {
   if (allowQueryString && req.query && req.query.variant) {
     variant = req.query.variant;
     if ('v1' == variant) variant = 0;
-    else if ('v2' == variant) variant = 100;
+    else if ('v2' == variant) variant = 99;
   }
+  if (0 > variant) variant = 0;
+  else if (100 < variant) variant = 99;
   return variant;
 }
 

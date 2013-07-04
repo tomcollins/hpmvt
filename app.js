@@ -155,7 +155,7 @@ function applyModification($, variant) {
     $('head').append('<style type="text/css">' +variant.css +'</style>');
   }
 }
-
+ 
 function getAnalyticsScript(variantConfig, variant) {
   var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
     , conversionSelector
