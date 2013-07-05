@@ -80,24 +80,12 @@ app.get('/', function(req, res) {
       xmlMode: false
     });
     modifyDom($, variant, function(html){
+      httpResponse.headers['content-length'] = html.length
       res.writeHead(200, httpResponse.headers);
       res.write(html);
       res.end();
     });
   });
-});
-
-app.get('/variant', function(req, res) {
-  var variant = utils.getVariant(req, res, false)
-    , isUpdated = false;
-  if (req.query && req.query.variant && req.query.variant != variant) {
-    variant = req.query.variant;
-    isUpdated = true;
-    res.cookie('hpmvt', variant);
-  }
-  res.writeHead(200, htmlHeaders);
-  res.write(utils.getVariantFormHtml(variant, isUpdated));
-  res.end();
 });
 
 http.createServer(app).listen(app.get('port'), function(){
