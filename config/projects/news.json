@@ -3,6 +3,7 @@
   "name": "News",
   "url": "http://www.bbc.co.uk/news/",
   "routes": [
+    "\/",
     "\/news[.]*"
   ]
 }
