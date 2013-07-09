@@ -64,8 +64,7 @@ app.get('*', function(req, res) {
   function sendResponse(res, headers, body) {
     headers['content-length'] = body.length
     res.writeHead(200, headers);
-    res.write(body);
-    res.end();
+    res.end(body);
   };
 
   function getCacheKey(httpOptions, variant) {
