@@ -1,60 +1,43 @@
 var http = require('http')
+  , url = require('url')
   , fs = require('fs')
   , path = require('path')
   , os = require("os")
   , vm = require("vm")
   , argv = require('optimist').argv
+  , cache = require('memory-cache')
   , express = require('express')
   , cheerio = require('cheerio')
   , utils = require("./utils");
  
 var app
   , hostname = os.hostname()
-  , host = argv.host || 'localhost'
   , port = argv.port || 3000
   , projectId = argv.project || null
+  , httpProxy = argv.http_proxy || null
   , analyticsHost = argv.analytics_host || 'localhost'
   , analyticsPort = argv.analytics_port || '4000'
+  , anaylyticsBaseUri = 'http://' +analyticsHost +':' +analyticsPort
   , projectConfig
   , experimentConfig
-  , environment
-  , httpOptions
-  , htmlHeaders = {
-    'Content-Type': 'text/html'
-  }
-  , analyticsHtml
-  , googleAnalyticsHtml;
+  , environment;
 
-// detect env
-
-if (!process.env.NODE_ENV) {
-  throw('NODE_ENV is not set');
-}
+if (!process.env.NODE_ENV) { throw('NODE_ENV is not set'); }
 environment = process.env.NODE_ENV;
-
 
 // setup project
 
-if (!projectId) {
-  throw('No project set use app.js --project=projectId.')
-}
-
+if (!projectId) { throw('No project set use app.js --project=projectId.'); }
 console.log('Load project config ./config/projects/' +projectId +'.json');
 projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
-googleAnalyticsHtml = fs.readFileSync('./data/ga.html');
-analyticsHtml = fs.readFileSync('./data/analytics.html');
 
-if (!projectConfig.headers) projectConfig.headers = {};
-httpOptions = utils.getHttpOptions(projectConfig.protocol, projectConfig.host, 80, projectConfig.path, argv.http_proxy, argv.http_proxy_port, projectConfig.headers);
-
-// create express app
+// create app
 
 app = express();
 
 app.configure(function(){
   app.set('port', port);
   app.use(express.cookieParser());
-  app.use(express.bodyParser());
   app.use(express.methodOverride());
   app.use(app.router);
 });
@@ -71,47 +54,104 @@ app.configure('production', function () {
   app.use(express.static(path.join(__dirname, 'public')));
 });
 
-app.get('/', function(req, res) {
+app.get('*', function(req, res) {
   var variant = utils.getVariant(req, res, true)
-    , $;
-  utils.getHttp(httpOptions, function(httpResponse, httpBody){
-    $ = cheerio.load(httpBody, {
-      ignoreWhitespace: true,
-      xmlMode: false
+    , projectConfig = getProjectConfigForRequest(req)
+    , httpOptions = getHttpOptionsForRequest(req)
+    , cacheKey = getCacheKey(httpOptions, variant)
+    , cacheValue;
+
+  function sendResponse(res, headers, body) {
+    headers['content-length'] = body.length
+    res.writeHead(200, headers);
+    res.write(body);
+    res.end();
+  };
+
+  function getCacheKey(httpOptions, variant) {
+    var key = httpOptions.path;
+    if (experimentConfig) {
+      key += ' ' +utils.getExperimentCacheKey(experimentConfig, variant);
+    }
+    return key;
+  };
+
+  cacheValue = cache.get(cacheKey);
+  if (cacheValue) {
+    sendResponse(res, cacheValue.headers, cacheValue.body);
+  } else {
+    utils.getHttp(httpOptions, function(headers, body){
+      var $;
+      if (projectConfig) {
+        $ = cheerio.load(body, {
+          ignoreWhitespace: true,
+          xmlMode: false
+        });
+        modifyDom($, variant, function(body){
+          cache.put(cacheKey, {
+            headers: headers,
+            body: body
+          }, 60000);
+          sendResponse(res, headers, body);
+        });
+      } else {
+        sendResponse(res, headers, body);
+      }
     });
-    modifyDom($, variant, function(html){
-      httpResponse.headers['content-length'] = html.length
-      res.writeHead(200, httpResponse.headers);
-      res.write(html);
-      res.end();
-    });
-  });
+  }
 });
 
+updateExperiments();
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Server listening on port " + app.get('port'));
 });
+setInterval(updateExperiments, 10000);
 
 function updateExperiments() {
   var options = utils.getHttpOptions(
-    'http', analyticsHost, analyticsPort, 
-    '/experiments/project/' +projectId +'?enabled=true'
+    anaylyticsBaseUri +'/experiments/project/' +projectId +'?enabled=true'
   );
   utils.getJson(options, function(result){
     experimentConfig = result;
   });
 }
-updateExperiments();
-setInterval(updateExperiments, 10000);
+
+function getProjectConfigForRequest(req) {
+  var config = null;
+  if (projectConfig.routes) {
+    projectConfig.routes.forEach(function(route){
+      if (req.url.match(route)) {
+        config = projectConfig;
+      }
+    });
+  }
+  return config;
+};
+
+function getHttpOptionsForRequest(req) {
+  var urlValue = url.parse(req.url)
+    , options;
+
+  if (projectConfig.url) {
+    urlValue = url.parse(projectConfig.url);
+  } else if (projectConfig.hostname) {
+    urlValue.hostname = projectConfig.hostname;
+  }
+
+  options = utils.getHttpOptions(urlValue, httpProxy);
+  if (projectConfig.headers) {
+    for(header in projectConfig.headers) options.headers[header] = projectConfig.headers[header];
+  }
+  return options;
+};
 
 function modifyDom($, variant, callback) {
-  var html
-    , prepend = '';
+  var html;
 
-  prepend = '<script>bbccookies_flag="OFF"</script>'
-    + '<base href="http://' +projectConfig.host +'"/>';
-
-  $('head').prepend(prepend);
+  if (-1 === hostname.indexOf('.bbc.co.uk')) {
+    $('head').prepend('<script>bbccookies_flag="OFF"</script>'
+      + '<base href="http://www.bbc.co.uk"/>');
+  }
 
   if (experimentConfig) {
     experimentConfig.forEach(function(experiment){
@@ -123,7 +163,7 @@ function modifyDom($, variant, callback) {
     $('body').append(getAnalyticsScript(experimentConfig, variant));
   }
 
-  $('body').append('<script type="text/javascript" src="http://' +host +':' +port +'/js/analytics.js"></script>');
+  $('body').append('<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/shared/analytics.js"></script>');
   
   callback($.html());
 };

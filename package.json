@@ -10,7 +10,8 @@
   "dependencies": {
     "express": "3.0.3",
     "optimist": "0.5",
-    "cheerio": "0.11"
+    "cheerio": "0.11",
+    "memory-cache" : "0.0.4"
   },
   "devDependencies": {},
   "engines": {

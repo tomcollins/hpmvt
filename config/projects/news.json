@@ -1,7 +1,8 @@
 {
   "id": "news",
   "name": "News",
-  "protocol": "http",
-  "host": "www.bbc.co.uk",
-  "path": "/news/"
+  "url": "http://www.bbc.co.uk/news/",
+  "routes": [
+    "\/news[.]*"
+  ]
 }

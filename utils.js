@@ -1,5 +1,18 @@
 var http = require('http')
-  , fs = require('fs');
+  , url = require('url')
+  , fs = require('fs')
+  , cache = require('memory-cache');
+
+
+exports.getExperimentCacheKey = function(experimentConfig, variant) {
+  var key = '';
+  experimentConfig.forEach(function(experiment){
+    if (experiment.variants) {
+      key += exports.getVariantIndex(experiment.variants.length, variant) +'_';
+    }
+  });
+  return key.substr(0, key.length-1);
+}
 
 exports.getVariantIndex = function(nofVariants, variant) {
   return Math.floor(nofVariants * variant/100);
@@ -101,42 +114,36 @@ exports.writeFile = function(file, content) {
   });
 };
 
-exports.getHttpOptions = function(protocol, host, port, path, http_proxy, http_proxy_port, headers) {
-  var options,
-    header;
+exports.getHttpOptions = function(uri, proxyUri) {
+  var options = {headers:{}}
+    , uri = url.parse(uri)
+    , header;
 
-  if (http_proxy) {
-    options = {
-      host: http_proxy,
-      path: protocol +'://' +host + path,
-      headers: {
-        Host: host
-      }
-    }
-    if (port) {
-      options.port = port;
-    }
-    if (http_proxy_port) {
-      options.port = http_proxy_port;
-    }
-  } else {
-    options = {
-      host: host,
-      path: path,
-      headers: {}
-    };
-    if (port) {
-      options.port = port;
-    }
-  }
-  if (headers) {
-    for(header in headers) options.headers[header] = headers[header];
+  if (proxyUri) proxyUri = url.parse(proxyUri);
+
+  options.protocol = uri.protocol || 'http:';
+  options.hostname = uri.hostname || 'localhost';
+  options.port = uri.port || null;
+  options.path = uri.path || '/';
+
+  if (proxyUri && proxyUri.hostname) {
+    options.path = options.protocol +'//' +uri.hostname + uri.path;
+    options.hostname = proxyUri.hostname;
+    options.headers.Host = uri.hostname;
+    options.port = proxyUri.port | null;
   }
   return options;
 };
 
 exports.getHttp = function(options, callback) {
-  var req;
+  var req
+    , key = options.host +'_' +options.port +'_' +options.path
+    , data = cache.get(key);
+
+  if (data) {
+    callback(data.headers, data.body);
+    return;
+  }
 
   req = http.request(options, function(res) {
     var html = '';
@@ -144,12 +151,15 @@ exports.getHttp = function(options, callback) {
       html += chunk;
     });
     res.on('end', function () {
-      callback(res, html);
+      cache.put(key, {
+        headers: res.headers,
+        body: html
+      }, 60000);
+      callback(res.headers, html);
     });
   });
   req.on('error', function(e) {
     console.log('Request error: ' + e.message);
   });
   req.end();
-
 };

@@ -1,10 +1,11 @@
 {
   "id": "news_mobile",
   "name": "News Mobile",
-  "protocol": "http",
-  "host": "m.bbc.co.uk",
-  "path": "/news/uk-politics-23192888",
+  "hostname": "m.bbc.co.uk",
   "headers": {
     "Cookie": "ckps_d=m"
-  }
+  },
+  "routes": [
+    "\/news[.]*"
+  ]
 }
