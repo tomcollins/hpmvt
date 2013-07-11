@@ -18,20 +18,15 @@ exports.getVariantIndex = function(nofVariants, variant) {
   return Math.floor(nofVariants * variant/100);
 }
 
-exports.getVariant = function(req, res, allowQueryString) {
-  var variant = parseInt(req.cookies.hpmvt);
-  if (!variant) {
-    variant = Math.random().toFixed(2) * 100;
-    res.cookie('hpmvt', variant);
+exports.getVariants = function(req, res) {
+  if (undefined === req.cookies.mvt) {
+    return false;
   }
-  if (allowQueryString && req.query && req.query.variant) {
-    variant = req.query.variant;
-    if ('v1' == variant) variant = 0;
-    else if ('v2' == variant) variant = 99;
+  var variants = req.cookies.mvt.split(',');
+  if (!variants) {
+    return false;
   }
-  if (0 > variant) variant = 0;
-  else if (100 <= variant) variant = 99;
-  return variant;
+  return variants;
 }
 
 exports.getVariantFormHtml = function(variant, isUpdated) {

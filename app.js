@@ -11,10 +11,11 @@ var http = require('http')
   , utils = require("./utils");
  
 var app
-  , hostname = os.hostname()
+  , hostname = argv.hostname || 'localhost'
   , port = argv.port || 3000
   , projectId = argv.project || null
   , httpProxy = argv.http_proxy || null
+  , cookieBaseUri = argv.cookie_base || 'http://localhost:4001'
   , analyticsHost = argv.analytics_host || 'localhost'
   , analyticsPort = argv.analytics_port || '4000'
   , anaylyticsBaseUri = 'http://' +analyticsHost +':' +analyticsPort
@@ -55,24 +56,32 @@ app.configure('production', function () {
 });
 
 app.get('*', function(req, res) {
-  var variant = utils.getVariant(req, res, true)
-    , projectConfig = getProjectConfigForRequest(req)
-    , httpOptions = getHttpOptionsForRequest(req)
-    , cacheKey = getCacheKey(httpOptions, variant)
-    , cacheValue;
+  var variants = utils.getVariants(req, res, true)
+    , reqUri = url.parse(req.url)
+    , projectConfig
+    , httpOptions
+    , cacheKey
+    , cacheValue
+    , ptrt = 'http://' +hostname +':' +port + (reqUri.pathname ? reqUri.pathname : '/');
+
+  if (false === variants) {
+    res.writeHead(302, {
+      'Content-type': 'text/html',
+      'Location': cookieBaseUri + (reqUri.pathname ? reqUri.pathname : '/') +'?ptrt=' +ptrt
+    });
+
+    res.end();
+    return;
+  }
+
+  projectConfig = getProjectConfigForRequest(req);
+  httpOptions = getHttpOptionsForRequest(req);
+  cacheKey = httpOptions.path + variants.join('_');
 
   function sendResponse(res, headers, body) {
     headers['content-length'] = body.length
     res.writeHead(200, headers);
     res.end(body);
-  };
-
-  function getCacheKey(httpOptions, variant) {
-    var key = httpOptions.path;
-    if (experimentConfig) {
-      key += ' ' +utils.getExperimentCacheKey(experimentConfig, variant);
-    }
-    return key;
   };
 
   cacheValue = cache.get(cacheKey);
@@ -86,7 +95,7 @@ app.get('*', function(req, res) {
           ignoreWhitespace: true,
           xmlMode: false
         });
-        modifyDom($, variant, function(body){
+        modifyDom($, variants, function(body){
           cache.put(cacheKey, {
             headers: headers,
             body: body
@@ -144,8 +153,9 @@ function getHttpOptionsForRequest(req) {
   return options;
 };
 
-function modifyDom($, variant, callback) {
-  var html;
+function modifyDom($, variants, callback) {
+  var html
+    , experimentVariantsToTrack = [];
 
   if (-1 === hostname.indexOf('.bbc.co.uk')) {
     $('head').prepend('<script>bbccookies_flag="OFF"</script>'
@@ -155,14 +165,24 @@ function modifyDom($, variant, callback) {
   if (experimentConfig) {
     experimentConfig.forEach(function(experiment){
       if (experiment.variants) {
-        variantIndex = utils.getVariantIndex(experiment.variants.length, variant);
-        applyModification($, experiment.variants[variantIndex]);
+        experiment.variants.forEach(function(variant){
+          variants.forEach(function(variantId){
+            if (variant.id === variantId) {
+              applyModification($, variant);
+              experimentVariantsToTrack.push({
+                experiment: experiment,
+                variant: variant
+              });
+            }
+          });
+        })
       }
     });
-    $('body').append(getAnalyticsScript(experimentConfig, variant));
+    $('body').append(getAnalyticsScript(variants, experimentVariantsToTrack));
+    $('body').append('<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/shared/analytics.js"></script>');
   }
 
-  $('body').append('<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/shared/analytics.js"></script>');
+  
   
   callback($.html());
 };
@@ -182,24 +202,20 @@ function applyModification($, variant) {
   }
 }
  
-function getAnalyticsScript(variantConfig, variant) {
-  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variant +'", queue: []};'
+function getAnalyticsScript(variants, experimentVariantsToTrack) {
+  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variants.join(',') +'", queue: []};'
     , conversionSelector
     , variantIndex;
 
-  experimentConfig.forEach(function(experiment){
-    variantIndex = utils.getVariantIndex(experiment.variants.length, variant);
-    script += '_analytics.queue.push(["view", "' +experiment._id +'", "' +variantIndex +'"]);';
-    if (experiment.tracking) {
-      experiment.tracking.forEach(function(tracking){
+  experimentVariantsToTrack.forEach(function(experimentVariant){
+    script += '_analytics.queue.push(["view", "' +experimentVariant.experiment._id +'", "' +experimentVariant.variant.id +'"]);';
+    if (experimentVariant.experiment.tracking) {
+      experimentVariant.experiment.tracking.forEach(function(tracking){
         if ('click' == tracking.type) {
-          script += '_analytics.queue.push(["click", "' +experiment._id +'","' +variantIndex +'","' +tracking.selector +'"]);';
+          script += '_analytics.queue.push(["click", "' +experimentVariant.experiment._id +'","' +experimentVariant.variant.id +'","' +tracking.selector +'"]);';
         }
       });
-    } else {
-      conversionSelector = null;
     }
-    
   });
   script += '</script>';
   return script;

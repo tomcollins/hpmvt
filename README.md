@@ -19,6 +19,16 @@ http_proxy_port: null
 
 
 
+app.js --project=homepage --http_proxy=http://188.227.189.66:80 --analytics_host=54.217.254.32 --analytics_port=4000
+
+app.js --project=news --port=3001 --analytics_host=54.217.254.32 --analytics_port=4000
+
+// api
+forever start app.js
+
+// mvtcookie
+forever start app.js --redirect_host=54.217.254.32:3000 --api_base=54.217.254.32:4000
+
 
 app.js --project=homepage --http_proxy=188.227.189.66:80 --analytics_host=ec2-54-216-199-221.eu-west-1.compute.amazonaws.com --analytics_port=4000
 
