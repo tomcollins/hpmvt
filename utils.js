@@ -22,7 +22,7 @@ exports.getVariants = function(req, res) {
   if (undefined === req.cookies.mvt) {
     return false;
   }
-  var variants = req.cookies.mvt.split(',');
+  var variants = req.cookies.mvt.split('|');
   if (!variants) {
     return false;
   }
