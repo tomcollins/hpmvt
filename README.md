@@ -18,6 +18,10 @@ http_proxy_port: null
 
 
 
+node app.js --project=homepage --port=3000 --http_proxy=18http://188.227.189.66:80 --analytics_host=54.217.254.32 --analytics_port=4000 --hostname=54.217.254.32 --cookie_base=http://54.217.254.32:4001
+
+node app.js --project=news --port=3001 --analytics_host=54.217.254.32 --analytics_port=4000 --hostname=54.217.254.32 --cookie_base=http://54.217.254.32:4001
+
 
 app.js --project=homepage --http_proxy=http://188.227.189.66:80 --analytics_host=54.217.254.32 --analytics_port=4000
 

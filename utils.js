@@ -4,6 +4,88 @@ var http = require('http')
   , cache = require('memory-cache');
 
 
+exports.getProjectByRequest = function(projects, req) {
+  var result = false;
+  projects.some(function(project){
+    if (project.routes) {
+      project.routes.some(function(route){
+        if (req.url.match(route)) {
+          result = project;
+          return true;
+        }
+      });
+    }
+    if (result) return true;
+  });
+
+  return result;
+};
+
+exports.loadProjects = function(apiBase, callback) {
+  var options = exports.getHttpOptions(apiBase +'/projects');
+  exports.getJson(options, function(data) {
+    callback(data);
+  });
+};
+
+exports.loadExperiments = function(projectId, apiBase, callback) {
+  var options = exports.getHttpOptions(apiBase +'/experiments/project/' +projectId +'?enabled=true');
+  exports.getJson(options, function(data) {
+    callback(data);
+  });
+};
+
+exports.loadProjectExperiments = function(projects, apiBase, callback) {
+  var experimentsToLoad = projects.length
+    , experimentLoaded = function() {
+      experimentsToLoad--;
+      if (0 === experimentsToLoad) {
+        callback();
+      }
+    };
+
+  projects.forEach(function(project){
+    (function(){
+      var localProject = project;
+      exports.loadExperiments(localProject.id, apiBase, function(experiments){
+        localProject.experiments = experiments;
+      });
+    }())
+  });
+}
+
+
+exports.getProjectByPath = function(projects, path) {
+  var regExp
+    , matchedProject = false
+    , hasMatchedRoute;
+
+  projects.some(function(project){
+    hasMatchedRoute = project.routes.some(function(route){
+      if (new RegExp(route).test(path)) {
+        matchedProject = project;
+        return true;
+      }
+    });
+    if (hasMatchedRoute) return true;
+  });
+  return matchedProject;
+};
+
+exports.getProjectById = function(projects, id) {
+  var result = false;
+  if (projects && id) {
+    projects.some(function(project){
+      if (id === project.id) {
+        result = project;
+        return true;
+      }
+    });
+  }
+  return result;
+};
+
+
 exports.getExperimentCacheKey = function(experimentConfig, variant) {
   var key = '';
   experimentConfig.forEach(function(experiment){
@@ -149,7 +231,7 @@ exports.getHttp = function(options, callback) {
       cache.put(key, {
         headers: res.headers,
         body: html
-      }, 60000);
+      }, 120000);
       callback(res.headers, html);
     });
   });

@@ -13,24 +13,17 @@ var http = require('http')
 var app
   , hostname = argv.hostname || 'localhost'
   , port = argv.port || 3000
-  , projectId = argv.project || null
   , httpProxy = argv.http_proxy || null
   , cookieBaseUri = argv.cookie_base || 'http://localhost:4001'
   , analyticsHost = argv.analytics_host || 'localhost'
   , analyticsPort = argv.analytics_port || '4000'
   , anaylyticsBaseUri = 'http://' +analyticsHost +':' +analyticsPort
-  , projectConfig
-  , experimentConfig
+  , projects
+  , projectExperiments
   , environment;
 
 if (!process.env.NODE_ENV) { throw('NODE_ENV is not set'); }
 environment = process.env.NODE_ENV;
-
-// setup project
-
-if (!projectId) { throw('No project set use app.js --project=projectId.'); }
-console.log('Load project config ./config/projects/' +projectId +'.json');
-projectConfig = utils.readJsonSync('./config/projects/' +projectId +'.json');
 
 // create app
 
@@ -57,26 +50,12 @@ app.configure('production', function () {
 
 app.get('*', function(req, res) {
   var variants = utils.getVariants(req, res, true)
-    , reqUri = url.parse(req.url)
-    , projectConfig
+    , reqUrl = url.parse(req.url)
+    , project = utils.getProjectByRequest(projects, req)
     , httpOptions
     , cacheKey
     , cacheValue
-    , ptrt = 'http://' +hostname +':' +port + (reqUri.pathname ? reqUri.pathname : '/');
-
-  if (false === variants) {
-    res.writeHead(302, {
-      'Content-type': 'text/html',
-      'Location': cookieBaseUri + (reqUri.pathname ? reqUri.pathname : '/') +'?ptrt=' +ptrt
-    });
-
-    res.end();
-    return;
-  }
-
-  projectConfig = getProjectConfigForRequest(req);
-  httpOptions = getHttpOptionsForRequest(req);
-  cacheKey = httpOptions.path + variants.join('_');
+    , ptrt = 'http://' +hostname +':' +port + (reqUrl.pathname ? reqUrl.pathname : '/');
 
   function sendResponse(res, headers, body) {
     headers['content-length'] = body.length
@@ -84,22 +63,34 @@ app.get('*', function(req, res) {
     res.end(body);
   };
 
+  if (false !== project && false === variants) {
+    res.writeHead(302, {
+      'Content-type': 'text/html',
+      'Location': cookieBaseUri + (reqUrl.pathname ? reqUrl.pathname : '/') +'?ptrt=' +ptrt
+    });
+    res.end();
+    return;
+  }
+
+  httpOptions = getHttpOptionsForRequest(project, req);
+  cacheKey = httpOptions.path + (variants ? variants.join('_') : '');
+
   cacheValue = cache.get(cacheKey);
   if (cacheValue) {
     sendResponse(res, cacheValue.headers, cacheValue.body);
   } else {
     utils.getHttp(httpOptions, function(headers, body){
       var $;
-      if (projectConfig) {
+      if (project) {
         $ = cheerio.load(body, {
           ignoreWhitespace: true,
           xmlMode: false
         });
-        modifyDom($, variants, function(body){
+        modifyDom(project, $, variants, function(body){
           cache.put(cacheKey, {
             headers: headers,
             body: body
-          }, 60000);
+          }, 120000);
           sendResponse(res, headers, body);
         });
       } else {
@@ -109,51 +100,38 @@ app.get('*', function(req, res) {
   }
 });
 
-updateExperiments();
+
+
+
+utils.loadProjects(anaylyticsBaseUri, function(result) {
+  if (result)
+  projects = result;
+  utils.loadProjectExperiments(projects, anaylyticsBaseUri, function(){
+    console.log('projects loaded');
+  });
+});
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Server listening on port " + app.get('port'));
 });
-setInterval(updateExperiments, 10000);
+//setInterval(updateExperiments, 10000);
 
-function updateExperiments() {
-  var options = utils.getHttpOptions(
-    anaylyticsBaseUri +'/experiments/project/' +projectId +'?enabled=true'
-  );
-  utils.getJson(options, function(result){
-    experimentConfig = result;
-  });
-}
 
-function getProjectConfigForRequest(req) {
-  var config = null;
-  if (projectConfig.routes) {
-    projectConfig.routes.forEach(function(route){
-      if (req.url.match(route)) {
-        config = projectConfig;
-      }
-    });
-  }
-  return config;
-};
 
-function getHttpOptionsForRequest(req) {
+
+function getHttpOptionsForRequest(project, req) {
   var urlValue = url.parse(req.url)
     , options;
 
-  if (projectConfig.url) {
-    urlValue = url.parse(projectConfig.url);
-  } else if (projectConfig.hostname) {
-    urlValue.hostname = projectConfig.hostname;
-  }
+  urlValue.hostname = 'www.bbc.co.uk';
 
   options = utils.getHttpOptions(urlValue, httpProxy);
-  if (projectConfig.headers) {
-    for(header in projectConfig.headers) options.headers[header] = projectConfig.headers[header];
+  if (project && project.headers) {
+    for(header in project.headers) options.headers[header] = project.headers[header];
   }
   return options;
 };
 
-function modifyDom($, variants, callback) {
+function modifyDom(project, $, variants, callback) {
   var html
     , experimentVariantsToTrack = [];
 
@@ -162,8 +140,8 @@ function modifyDom($, variants, callback) {
       + '<base href="http://www.bbc.co.uk"/>');
   }
 
-  if (experimentConfig) {
-    experimentConfig.forEach(function(experiment){
+  if (project && project.experiments) {
+    project.experiments.forEach(function(experiment){
       if (experiment.variants) {
         experiment.variants.forEach(function(variant){
           variants.forEach(function(variantId){
@@ -178,12 +156,10 @@ function modifyDom($, variants, callback) {
         })
       }
     });
-    $('body').append(getAnalyticsScript(variants, experimentVariantsToTrack));
+    $('body').append(getAnalyticsScript(project, variants, experimentVariantsToTrack));
     $('body').append('<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/shared/analytics.js"></script>');
   }
 
-  
-  
   callback($.html());
 };
 
@@ -202,8 +178,8 @@ function applyModification($, variant) {
   }
 }
  
-function getAnalyticsScript(variants, experimentVariantsToTrack) {
-  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +projectId +'",variant: "' +variants.join(',') +'", queue: []};'
+function getAnalyticsScript(project, variants, experimentVariantsToTrack) {
+  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +project.id +'",variant: "' +variants.join(',') +'", queue: []};'
     , conversionSelector
     , variantIndex;
 
