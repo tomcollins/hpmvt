@@ -13,11 +13,10 @@ var http = require('http')
 var app
   , hostname = argv.hostname || 'localhost'
   , port = argv.port || 3000
+  , baseUrl = 'http://' +hostname +':' +port
   , httpProxy = argv.http_proxy || null
-  , cookieBaseUri = argv.cookie_base || 'http://localhost:4001'
-  , analyticsHost = argv.analytics_host || 'localhost'
-  , analyticsPort = argv.analytics_port || '4000'
-  , anaylyticsBaseUri = 'http://' +analyticsHost +':' +analyticsPort
+  , cookieBaseUrl = argv.cookie_base || 'http://localhost:4001'
+  , analyticsBaseUrl = argv.analytics_base || 'http://localhost:4000'
   , projects
   , projectExperiments
   , environment;
@@ -55,7 +54,11 @@ app.get('*', function(req, res) {
     , httpOptions
     , cacheKey
     , cacheValue
-    , ptrt = 'http://' +hostname +':' +port + (reqUrl.pathname ? reqUrl.pathname : '/');
+    , ptrt = baseUrl + (reqUrl.pathname ? reqUrl.pathname : '/');
+
+  if (!req.cookies.userId) {
+    res.cookie('userId', new Date().getTime());
+  };  
 
   function sendResponse(res, headers, body) {
     headers['content-length'] = body.length
@@ -66,7 +69,7 @@ app.get('*', function(req, res) {
   if (false !== project && false === variants) {
     res.writeHead(302, {
       'Content-type': 'text/html',
-      'Location': cookieBaseUri + (reqUrl.pathname ? reqUrl.pathname : '/') +'?ptrt=' +ptrt
+      'Location': cookieBaseUrl + (reqUrl.pathname ? reqUrl.pathname : '/') +'?ptrt=' +ptrt
     });
     res.end();
     return;
@@ -82,6 +85,7 @@ app.get('*', function(req, res) {
     utils.getHttp(httpOptions, function(headers, body){
       var $;
       if (project) {
+        body = addVisitTracking(reqUrl, body, project, variants);
         $ = cheerio.load(body, {
           ignoreWhitespace: true,
           xmlMode: false
@@ -94,6 +98,11 @@ app.get('*', function(req, res) {
           sendResponse(res, headers, body);
         });
       } else {
+        body = addVisitTracking(reqUrl, body, project, variants);
+        cache.put(cacheKey, {
+          headers: headers,
+          body: body
+        }, 120000);
         sendResponse(res, headers, body);
       }
     });
@@ -103,10 +112,10 @@ app.get('*', function(req, res) {
 
 
 
-utils.loadProjects(anaylyticsBaseUri, function(result) {
+utils.loadProjects(analyticsBaseUrl, function(result) {
   if (result)
   projects = result;
-  utils.loadProjectExperiments(projects, anaylyticsBaseUri, function(){
+  utils.loadProjectExperiments(projects, analyticsBaseUrl, function(){
     console.log('projects loaded');
   });
 });
@@ -116,6 +125,14 @@ http.createServer(app).listen(app.get('port'), function(){
 //setInterval(updateExperiments, 10000);
 
 
+function addVisitTracking(url, body, project, variants) {
+  var html = '<script type="text/javascript">var _analytics = {httpBaseUrl: "' +baseUrl +'", baseUrl:"' +analyticsBaseUrl +'"' +(project ? ',project: "' +project.id +'"' : '') +',variant: "' +(variants ? variants.join(',') : '') +'", queue: []};</script>'
+    + '<script type="text/javascript" src="' +analyticsBaseUrl +'/js/shared/analytics.js"></script>'
+    + '<img src="' +analyticsBaseUrl +'/impression?url=' +url.path +'" width="1" height="1"/>';
+
+  body = body.replace('</body>', html +'</body>');
+  return body;
+}
 
 
 function getHttpOptionsForRequest(project, req) {
@@ -157,7 +174,6 @@ function modifyDom(project, $, variants, callback) {
       }
     });
     $('body').append(getAnalyticsScript(project, variants, experimentVariantsToTrack));
-    $('body').append('<script type="text/javascript" src="http://' +analyticsHost +':' +analyticsPort +'/js/shared/analytics.js"></script>');
   }
 
   callback($.html());
@@ -179,7 +195,7 @@ function applyModification($, variant) {
 }
  
 function getAnalyticsScript(project, variants, experimentVariantsToTrack) {
-  var script = '<script type="text/javascript">var _analytics = {host:"' +analyticsHost +'",port:"' +analyticsPort +'",project: "' +project.id +'",variant: "' +variants.join(',') +'", queue: []};'
+  var script = '<script type="text/javascript">'
     , conversionSelector
     , variantIndex;
 
