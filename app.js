@@ -30,21 +30,38 @@ app = express();
 
 app.configure(function(){
   app.set('port', port);
-  app.use(express.cookieParser());
+  app.use(express.cookieParser()); 
+});
+
+app.configure('development', function () {
+  app.use(express.static(path.join(__dirname, 'public'), { maxAge: 120 * 1000 }));
+  app.use(express.logger('dev'));
+  app.use(express.errorHandler({dumpExceptions: true, showStack: true}));
+});
+
+app.configure('production', function () {
+  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.compress());
+  app.use(express.errorHandler());
+});
+
+app.configure(function(){
   app.use(express.methodOverride());
   app.use(app.router);
 });
 
-app.configure('development', function () {
-  app.use(express.logger('dev'));
-  app.use(express.errorHandler({dumpExceptions: true, showStack: true}));
-  app.use(express.static(path.join(__dirname, 'public'), { maxAge: 120 * 1000 }));
-});
+app.get('/me', function(req, res) {
+  var html = String(fs.readFileSync('./public/me.html'))
+    , userId = req.cookies.userId
+    , headers;
 
-app.configure('production', function () {
-  app.use(express.compress());
-  app.use(express.errorHandler());
-  app.use(express.static(path.join(__dirname, 'public')));
+  html = html.replace('<head>', '<head><script type="text/javascript">_userId="' +userId +'";_apiBase="' +analyticsBaseUrl +'";</script>');
+  headers = {
+    'Content-type': 'text/html',
+    'content-length': html.length
+  };
+  res.writeHead(200, headers);
+  res.end(html);
 });
 
 app.get('*', function(req, res) {
@@ -83,6 +100,15 @@ app.get('*', function(req, res) {
     sendResponse(res, cacheValue.headers, cacheValue.body);
   } else {
     utils.getHttp(httpOptions, function(headers, body){
+      if (headers.location) {
+        reqUrl = url.parse(headers.location);
+        res.writeHead(302, {
+          'Content-type': 'text/html',
+          'Location': 'http://' +hostname +':' +port +reqUrl.path
+        });
+        res.end();
+        return;
+      }
       var $;
       if (project) {
         body = addVisitTracking(reqUrl, body, project, variants);
@@ -131,6 +157,8 @@ function addVisitTracking(url, body, project, variants) {
     + '<img src="' +analyticsBaseUrl +'/impression?url=' +url.path +'" width="1" height="1"/>';
 
   body = body.replace('</body>', html +'</body>');
+
+  body = body.replace('<head>', '<head><script>bbccookies_flag="OFF"</script>');
   return body;
 }
 

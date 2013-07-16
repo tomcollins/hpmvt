@@ -1,0 +1,64 @@
+#feed {
+  width: 976px;
+  margin: 10px auto;
+}
+#feed ul {
+  position: relative;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+#feed li {
+  position: relative;
+  margin: 10px 0 10px 0;
+  border-top: 1px solid #cecece;
+  font-size: 1.2em;
+  padding-left: 151px;
+  
+}
+#feed ul.highlights li:first-child {
+  border-top: 0px solid #fff;
+}
+#feed li img {
+   position: absolute;
+   top: 10px;
+   left: 0;
+}
+#feed li img.article {
+   left: 76px;
+}
+#feed ul.highlights li:first-child img {
+  top: 0;
+}
+
+#feed li a {
+   text-decoration: none;
+}
+#feed li a:hover {
+   text-decoration: underline;
+}
+#feed li p {
+  margin: 0;
+  padding: 0;
+}
+#feed li p.title {
+   color: #333;
+   font-weight: bold;
+   font-size: 1.2em;
+   margin: 10px 0 5px 0;
+}
+#feed li p.summary {
+   margin: 0 0 5px 0;
+}
+#feed li p.date {
+   margin: 0;
+   color: #666;
+}
+#feed li p.date span{
+   color: #999;
+}
+
+#feed ul.highlights {
+
+}
+
