@@ -88,5 +88,6 @@ var images = {
   "sport:formula1": "/img/icons/sport_formula1.png",
   "sport:rugby-union": "/img/icons/sport_rugby-union.png",
   "sport:tennis": "/img/icons/sport_tennis.png",
-  "sport:cricket": "/img/icons/sport_cricket.png"
+  "sport:cricket": "/img/icons/sport_cricket.png",
+  "sport:athletics": "/img/icons/sport_athletics.png"
 };
