@@ -7,7 +7,8 @@ require(['jquery-1'], function($) {
     var dateDifference = nowDate.getTime() - new Date(article.date).getTime()
       , minutes = dateDifference / (1000 * 60)
       , time = Math.ceil(minutes)
-      , category = article.product;
+      , category = article.product
+      , articleImage;
 
     if (article.section) category += ', ' +article.section;
 
@@ -31,14 +32,15 @@ require(['jquery-1'], function($) {
       image = images['bbc'];
     };
 
+    articleImage = null == article.image ? images.bbc : article.image; 
 
     html = '<li>'
     + '<a href="' +article.link +'">'
     + '<img class="brand" src="' +image +'" width="66" height="49" />'
-    + '<img class="article" src="' +article.image +'" width="66" height="49" />'
+    + '<img class="article" src="' +articleImage +'" width="66" height="49" />'
     + '<p class="title">' +article.title +'</p>'
     + '</a>'
-    + '<p class="summary">' +article.description +'</p>'
+    + '<p class="summary">' +(undefined == article.description ? 'n/a' : article.description) +'</p>'
     + '<p class="date">' +time +'<span> (' +category +')</span></p>'
     + '</li>';
     return html;
@@ -65,7 +67,6 @@ require(['jquery-1'], function($) {
   };
 
   $('ready', function(){
-    console.log('ready');
     $.ajax({
       url: _apiBase +'/users/' +_userId,
       success: createFeed
@@ -86,5 +87,6 @@ var images = {
   "sport:cycling": "/img/icons/sport_cycling.png",
   "sport:formula1": "/img/icons/sport_formula1.png",
   "sport:rugby-union": "/img/icons/sport_rugby-union.png",
-  "sport:tennis": "/img/icons/sport_tennis.png"  
+  "sport:tennis": "/img/icons/sport_tennis.png",
+  "sport:cricket": "/img/icons/sport_cricket.png"
 };
