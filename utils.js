@@ -6,17 +6,19 @@ var http = require('http')
 
 exports.getProjectByRequest = function(projects, req) {
   var result = false;
-  projects.some(function(project){
-    if (project.routes) {
-      project.routes.some(function(route){
-        if (req.url.match(route)) {
-          result = project;
-          return true;
-        }
-      });
-    }
-    if (result) return true;
-  });
+  if (projects) {
+    projects.some(function(project){
+      if (project.routes) {
+        project.routes.some(function(route){
+          if (req.url.match(route)) {
+            result = project;
+            return true;
+          }
+        });
+      }
+      if (result) return true;
+    });
+  }
 
   return result;
 };

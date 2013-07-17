@@ -74,7 +74,9 @@ app.get('*', function(req, res) {
     , ptrt = baseUrl + (reqUrl.pathname ? reqUrl.pathname : '/');
 
   if (!req.cookies.userId) {
-    res.cookie('userId', new Date().getTime());
+    res.cookie('userId', new Date().getTime(), {
+      expires: new Date(new Date().getTime() + (1000 * 60 * 60 * 24 * 365))
+    });
   };  
 
   function sendResponse(res, headers, body) {
