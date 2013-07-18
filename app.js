@@ -58,7 +58,7 @@ app.get('/me', function(req, res) {
   html = html.replace('<head>', '<head><script type="text/javascript">_userId="' +userId +'";_apiBase="' +analyticsBaseUrl +'";</script>');
   headers = {
     'Content-type': 'text/html',
-    'content-length': html.length
+    'content-length': Buffer.byteLength(html)
   };
   res.writeHead(200, headers);
   res.end(html);
@@ -80,7 +80,7 @@ app.get('*', function(req, res) {
   };  
 
   function sendResponse(res, headers, body) {
-    headers['content-length'] = body.length
+    headers['content-length'] = Buffer.byteLength(body);
     res.writeHead(200, headers);
     res.end(body);
   };
